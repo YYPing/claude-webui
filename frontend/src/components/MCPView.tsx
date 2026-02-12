@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, List, Tag, Typography, Space, Badge, Empty } from 'antd';
+import { Card, List, Tag, Typography, Empty } from 'antd';
 import { ApiOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface MCP {
   name: string;

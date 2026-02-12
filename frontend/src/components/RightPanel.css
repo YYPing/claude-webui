@@ -1,0 +1,211 @@
+/* RightPanel.css */
+
+.right-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+}
+
+/* Tab 样式 */
+.panel-tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panel-tabs .ant-tabs-nav-wrap {
+  justify-content: space-around;
+}
+
+.panel-tabs .ant-tabs-tab {
+  padding: 12px 8px;
+  margin: 0;
+}
+
+.panel-tabs .ant-tabs-tab-active {
+  background: transparent;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.tab-item .anticon {
+  font-size: 16px;
+}
+
+.panel-tabs .ant-tabs-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.panel-tabs .ant-tabs-tabpane {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* 面板内容 */
+.panel-content {
+  padding: 16px;
+}
+
+.section-title {
+  margin-bottom: 16px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px !important;
+}
+
+/* Agent 项 */
+.agent-item {
+  padding: 12px !important;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  margin-bottom: 8px !important;
+  border: 1px solid transparent;
+}
+
+.agent-item:hover {
+  background: rgba(24, 144, 255, 0.05);
+  border-color: rgba(24, 144, 255, 0.2);
+}
+
+.agent-item.active {
+  background: rgba(24, 144, 255, 0.1);
+  border-color: var(--accent-color);
+}
+
+.agent-avatar {
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-name {
+  font-size: 14px;
+}
+
+.mode-badge .ant-badge-status-text {
+  font-size: 11px;
+}
+
+.agent-desc {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Agent 信息卡片 */
+.agent-info {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.info-card {
+  background: var(--bg-secondary) !important;
+  border: none !important;
+}
+
+.info-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* MCP 项 */
+.mcp-item {
+  padding: 12px !important;
+  border-radius: 8px;
+  margin-bottom: 8px !important;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+
+.mcp-desc {
+  font-size: 12px;
+}
+
+.mcp-tools {
+  font-size: 11px;
+}
+
+/* 权限配置 */
+.permission-mode-card {
+  margin-bottom: 16px;
+  background: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.mode-tag {
+  font-size: 13px;
+  padding: 4px 12px;
+}
+
+.permission-section {
+  margin-bottom: 20px;
+}
+
+.permission-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.allowed-icon {
+  color: var(--success-color);
+}
+
+.denied-icon {
+  color: var(--error-color);
+}
+
+.permission-item {
+  padding: 8px 12px !important;
+  border-radius: 6px;
+  margin-bottom: 4px !important;
+  background: var(--bg-primary);
+}
+
+.permission-item.allowed {
+  border-left: 3px solid var(--success-color);
+}
+
+.permission-item.denied {
+  border-left: 3px solid var(--error-color);
+  opacity: 0.7;
+}
+
+.permission-item .anticon {
+  color: var(--text-secondary);
+}
+
+/* 暗黑主题适配 */
+.right-panel.dark .mcp-item,
+.right-panel.dark .permission-item {
+  background: #1f1f1f;
+}
+
+.right-panel.dark .info-card {
+  background: #1f1f1f !important;
+}
+
+.right-panel.dark .agent-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.right-panel.dark .agent-item.active {
+  background: rgba(24, 144, 255, 0.15);
+}

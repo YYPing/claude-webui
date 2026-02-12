@@ -1,301 +1,313 @@
-import { useState, useEffect } from 'react';
-import { Layout, Card, Statistic, Row, Col, List, Tag, Spin, Alert, Typography, Space, Tabs } from 'antd';
-import { 
-  CodeOutlined, 
-  MessageOutlined, 
-  FolderOutlined, 
+import { useState, useEffect, createContext } from 'react';
+import { Layout, Button, Tooltip, Badge, Avatar, Dropdown, Space, Typography, Divider } from 'antd';
+import {
   RobotOutlined,
-  CheckCircleOutlined,
-  StopOutlined,
-  SafetyCertificateOutlined,
-  ApiOutlined
+  SettingOutlined,
+  MoonOutlined,
+  SunOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  CheckCircleFilled,
+  ThunderboltFilled,
+  CodeOutlined
 } from '@ant-design/icons';
-import SessionDetail from './components/SessionDetail';
-import PermissionsView from './components/PermissionsView';
-import MCPView from './components/MCPView';
+import ChatArea from './components/ChatArea';
+import SessionSidebar from './components/SessionSidebar';
+import RightPanel from './components/RightPanel';
+import './App.css';
 
-const { Header, Content } = Layout;
-const { Title, Text } = Typography;
-const { TabPane } = Tabs;
+const { Header, Sider, Content } = Layout;
+const { Text } = Typography;
 
-interface ClaudeStatus {
-  status: 'running' | 'stopped';
-  pid?: string;
-  cpu?: string;
-  memory?: string;
-  time?: string;
-  timestamp: number;
+// 主题上下文
+interface ThemeContextType {
+  isDark: boolean;
+  toggleTheme: () => void;
 }
 
+export const ThemeContext = createContext<ThemeContextType>({
+  isDark: false,
+  toggleTheme: () => {}
+});
+
+// 会话类型
 interface Session {
   id: string;
   title: string;
-  project: string;
-  createdAt: number;
-  updatedAt: number;
-  messageCount: number;
+  lastMessage: string;
+  timestamp: number;
+  unread?: number;
+  isActive?: boolean;
 }
 
+// Agent 类型
 interface Agent {
+  id: string;
   name: string;
-  description: string;
-  allowedTools: string[];
+  mode: 'build' | 'plan';
+  icon: string;
+  color: string;
 }
 
-const API_BASE = 'http://localhost:3001/api';
+const AGENTS: Agent[] = [
+  { id: 'pm', name: 'PM', mode: 'build', icon: '🎯', color: '#1890ff' },
+  { id: 'fe', name: 'FE', mode: 'build', icon: '🎨', color: '#52c41a' },
+  { id: 'be', name: 'BE', mode: 'build', icon: '⚙️', color: '#722ed1' },
+  { id: 'qa', name: 'QA', mode: 'plan', icon: '🧪', color: '#fa8c16' },
+];
 
 function App() {
-  const [status, setStatus] = useState<ClaudeStatus | null>(null);
+  // 状态管理
+  const [isDark, setIsDark] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [activeAgent, setActiveAgent] = useState<Agent>(AGENTS[0]);
+  const [activeTab, setActiveTab] = useState<'agents' | 'mcp' | 'permissions'>('agents');
+  const [claudeStatus, setClaudeStatus] = useState<'running' | 'stopped'>('stopped');
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentSessionId, setCurrentSessionId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
 
+  // 切换主题
+  const toggleTheme = () => {
+    setIsDark(!isDark);
+    document.body.classList.toggle('dark-theme', !isDark);
+  };
+
+  // 获取状态
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchStatus, 5000);
+    const checkStatus = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/status');
+        const data = await res.json();
+        setClaudeStatus(data.status);
+      } catch (e) {
+        setClaudeStatus('stopped');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // 获取会话列表
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/history');
+        const data = await res.json();
+        const sessionList = data.sessions?.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          lastMessage: '',
+          timestamp: s.updatedAt,
+          isActive: s.id === currentSessionId
+        })) || [];
+        setSessions(sessionList);
+        if (sessionList.length > 0 && !currentSessionId) {
+          setCurrentSessionId(sessionList[0].id);
+        }
+      } catch (e) {
+        console.error('Failed to fetch sessions:', e);
+      }
+    };
+    fetchSessions();
+  }, [currentSessionId]);
 
-      const [statusRes, historyRes, agentsRes] = await Promise.all([
-        fetch(`${API_BASE}/status`),
-        fetch(`${API_BASE}/history`),
-        fetch(`${API_BASE}/agents`)
-      ]);
-
-      const statusData = await statusRes.json();
-      const historyData = await historyRes.json();
-      const agentsData = await agentsRes.json();
-
-      setStatus(statusData);
-      setSessions(historyData.sessions?.slice(0, 10) || []);
-      setAgents(agentsData.agents || []);
-    } catch (err) {
-      setError('无法连接到后端服务，请确保后端已启动 (http://localhost:3001)');
-    } finally {
-      setLoading(false);
-    }
+  // 创建新会话
+  const createNewSession = () => {
+    const newSession: Session = {
+      id: `session-${Date.now()}`,
+      title: '新会话',
+      lastMessage: '',
+      timestamp: Date.now(),
+      isActive: true
+    };
+    setSessions(prev => [newSession, ...prev.map(s => ({ ...s, isActive: false }))]);
+    setCurrentSessionId(newSession.id);
   };
 
-  const fetchStatus = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/status`);
-      const data = await res.json();
-      setStatus(data);
-    } catch (err) {
-      console.error('Failed to fetch status:', err);
-    }
+  // 选择会话
+  const selectSession = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    setSessions(prev => prev.map(s => ({
+      ...s,
+      isActive: s.id === sessionId
+    })));
   };
 
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) return `${hours}小时前`;
-    if (minutes > 0) return `${minutes}分钟前`;
-    return '刚刚';
-  };
+  // Agent 菜单项
+  const agentMenuItems = AGENTS.map(agent => ({
+    key: agent.id,
+    label: (
+      <Space>
+        <Avatar size="small" style={{ backgroundColor: agent.color }}>
+          {agent.icon}
+        </Avatar>
+        <span>{agent.name}</span>
+        <Badge 
+          status={agent.mode === 'build' ? 'processing' : 'default'} 
+          text={agent.mode === 'build' ? 'Build' : 'Plan'}
+        />
+      </Space>
+    ),
+    onClick: () => setActiveAgent(agent)
+  }));
 
-  const handleSessionClick = (session: Session) => {
-    setSelectedSession(session);
-    setActiveTab('session');
-  };
-
-  if (loading && !status) {
+  if (isLoading) {
     return (
-      <Layout style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" tip="加载中..." />
-      </Layout>
+      <div className="loading-screen">
+        <div className="loading-spinner">
+          <ThunderboltFilled spin style={{ fontSize: 48, color: '#1890ff' }} />
+          <Text style={{ marginTop: 16 }}>正在启动 Claude Web UI...</Text>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Space>
-          <CodeOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-          <Title level={4} style={{ margin: 0 }}>Claude Code Web UI</Title>
-        </Space>
-        <Space>
-          {status?.status === 'running' ? (
-            <Tag icon={<CheckCircleOutlined />} color="success">
-              Claude 运行中
-            </Tag>
-          ) : (
-            <Tag icon={<StopOutlined />} color="error">
-              Claude 未运行
-            </Tag>
-          )}
-        </Space>
-      </Header>
+    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+      <Layout className={`app-layout ${isDark ? 'dark' : 'light'}`}>
+        {/* 顶部 Header */}
+        <Header className="app-header">
+          <div className="header-left">
+            <div className="logo">
+              <CodeOutlined className="logo-icon" />
+              <span className="logo-text">Claude Web UI</span>
+            </div>
+            
+            <Divider type="vertical" className="header-divider" />
+            
+            {/* Agent 选择器 */}
+            <Dropdown menu={{ items: agentMenuItems }} placement="bottomLeft">
+              <Button className="agent-selector">
+                <Avatar size="small" style={{ backgroundColor: activeAgent.color }}>
+                  {activeAgent.icon}
+                </Avatar>
+                <span className="agent-name">{activeAgent.name}</span>
+                <Badge 
+                  status={activeAgent.mode === 'build' ? 'processing' : 'default'} 
+                  text={activeAgent.mode === 'build' ? 'Build' : 'Plan'}
+                  className="agent-mode"
+                />
+              </Button>
+            </Dropdown>
+          </div>
 
-      <Content style={{ padding: '24px', background: '#f5f5f5' }}>
-        {error && (
-          <Alert
-            message="连接错误"
-            description={error}
-            type="error"
-            closable
-            style={{ marginBottom: 24 }}
-          />
-        )}
-
-        <Tabs activeKey={activeTab} onChange={setActiveTab} type="card">
-          <TabPane tab="📊 Dashboard" key="dashboard">
-            {/* Claude Code 状态卡片 */}
-            <Card style={{ marginBottom: 24 }}>
-              {status?.status === 'running' ? (
-                <Row gutter={16}>
-                  <Col span={6}>
-                    <Statistic
-                      title="运行状态"
-                      value="运行中"
-                      valueStyle={{ color: '#52c41a' }}
-                      prefix={<CheckCircleOutlined />}
-                    />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic
-                      title="PID"
-                      value={status.pid || '-'}
-                    />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic
-                      title="CPU 占用"
-                      value={status.cpu || '-'}
-                    />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic
-                      title="内存占用"
-                      value={status.memory || '-'}
-                    />
-                  </Col>
-                </Row>
+          <div className="header-center">
+            {/* Claude 状态指示 */}
+            <div className={`status-indicator ${claudeStatus}`}>
+              {claudeStatus === 'running' ? (
+                <>
+                  <CheckCircleFilled className="status-icon" />
+                  <span>Claude 运行中</span>
+                </>
               ) : (
-                <Alert
-                  message="Claude Code 未运行"
-                  description="检测到 Claude Code 进程未启动，请在终端中运行 `claude` 命令启动"
-                  type="warning"
-                  showIcon
-                />
+                <>
+                  <Badge status="error" />
+                  <span>Claude 未启动</span>
+                </>
               )}
-            </Card>
+            </div>
+          </div>
 
-            {/* 统计卡片 */}
-            <Row gutter={16} style={{ marginBottom: 24 }}>
-              <Col span={8}>
-                <Card>
-                  <Statistic
-                    title="总会话数"
-                    value={sessions.length}
-                    prefix={<MessageOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card>
-                  <Statistic
-                    title="当前 Agent"
-                    value={agents.length > 0 ? agents[0].name.toUpperCase() : '默认'}
-                    prefix={<RobotOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card>
-                  <Statistic
-                    title="工作目录"
-                    value={sessions[0]?.project || '-'}
-                    prefix={<FolderOutlined />}
-                    valueStyle={{ fontSize: 16 }}
-                  />
-                </Card>
-              </Col>
-            </Row>
-
-            {/* Agent 信息 */}
-            {agents.length > 0 && (
-              <Card title="🤖 Agents" style={{ marginBottom: 24 }}>
-                <List
-                  dataSource={agents}
-                  renderItem={(agent) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        title={
-                          <Space>
-                            <Text strong>{agent.name.toUpperCase()}</Text>
-                            <Tag color="blue">{agent.allowedTools.length} 个工具</Tag>
-                          </Space>
-                        }
-                        description={agent.description}
-                      />
-                    </List.Item>
-                  )}
+          <div className="header-right">
+            <Space size="middle">
+              {/* 主题切换 */}
+              <Tooltip title={isDark ? '切换明亮主题' : '切换暗黑主题'}>
+                <Button
+                  type="text"
+                  icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+                  onClick={toggleTheme}
+                  className="header-btn"
                 />
-              </Card>
-            )}
+              </Tooltip>
 
-            {/* 最近会话 */}
-            <Card title="💬 最近会话">
-              <List
-                dataSource={sessions}
-                renderItem={(session) => (
-                  <List.Item
-                    actions={[<Tag>{session.messageCount} 条消息</Tag>]}
-                    onClick={() => handleSessionClick(session)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <List.Item.Meta
-                      title={session.title}
-                      description={
-                        <Space>
-                          <Text type="secondary">{session.project}</Text>
-                          <Text type="secondary">·</Text>
-                          <Text type="secondary">{formatTime(session.updatedAt)}</Text>
-                        </Space>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            </Card>
-          </TabPane>
+              {/* 设置 */}
+              <Tooltip title="设置">
+                <Button
+                  type="text"
+                  icon={<SettingOutlined />}
+                  className="header-btn"
+                />
+              </Tooltip>
 
-          <TabPane 
-            tab={selectedSession ? `💬 ${selectedSession.title.substring(0, 20)}...` : "💬 会话详情"} 
-            key="session"
-            disabled={!selectedSession}
+              {/* 用户信息 */}
+              <Avatar className="user-avatar" icon={<RobotOutlined />} />
+            </Space>
+          </div>
+        </Header>
+
+        <Layout className="app-body">
+          {/* 左侧边栏 - 会话列表 */}
+          <Sider
+            collapsed={leftCollapsed}
+            onCollapse={setLeftCollapsed}
+            collapsible
+            trigger={null}
+            width={280}
+            collapsedWidth={0}
+            className="left-sidebar"
           >
-            {selectedSession && (
-              <SessionDetail 
-                sessionId={selectedSession.id} 
-                sessionTitle={selectedSession.title}
-              />
-            )}
-          </TabPane>
+            <SessionSidebar
+              sessions={sessions}
+              currentSessionId={currentSessionId}
+              onSelectSession={selectSession}
+              onCreateSession={createNewSession}
+              isDark={isDark}
+            />
+          </Sider>
 
-          <TabPane tab={<span><SafetyCertificateOutlined /> 权限</span>} key="permissions">
-            <PermissionsView />
-          </TabPane>
+          {/* 左侧折叠按钮 */}
+          <div 
+            className="sidebar-trigger left"
+            onClick={() => setLeftCollapsed(!leftCollapsed)}
+          >
+            {leftCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          </div>
 
-          <TabPane tab={<span><ApiOutlined /> MCP</span>} key="mcp">
-            <MCPView />
-          </TabPane>
-        </Tabs>
-      </Content>
-    </Layout>
+          {/* 中间主内容区 */}
+          <Content className="main-content">
+            <ChatArea
+              sessionId={currentSessionId}
+              agent={activeAgent}
+              isDark={isDark}
+              claudeStatus={claudeStatus}
+            />
+          </Content>
+
+          {/* 右侧折叠按钮 */}
+          <div 
+            className="sidebar-trigger right"
+            onClick={() => setRightCollapsed(!rightCollapsed)}
+          >
+            {rightCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          </div>
+
+          {/* 右侧边栏 - 工具面板 */}
+          <Sider
+            collapsed={rightCollapsed}
+            onCollapse={setRightCollapsed}
+            collapsible
+            trigger={null}
+            width={320}
+            collapsedWidth={0}
+            className="right-sidebar"
+          >
+            <RightPanel
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              agents={AGENTS}
+              activeAgent={activeAgent}
+              onSelectAgent={setActiveAgent}
+              isDark={isDark}
+            />
+          </Sider>
+        </Layout>
+      </Layout>
+    </ThemeContext.Provider>
   );
 }
 

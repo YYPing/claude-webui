@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, List, Tag, Typography, Space, Badge } from 'antd';
-import { SafetyCertificateOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { SafetyCertificateOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
 const { Text, Title } = Typography;
 

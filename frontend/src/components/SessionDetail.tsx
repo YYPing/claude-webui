@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { List, Tag, Typography, Space, Card, Badge, Collapse } from 'antd';
-import { MessageOutlined, RobotOutlined, ToolOutlined, CopyOutlined } from '@ant-design/icons';
+import { MessageOutlined, RobotOutlined, CopyOutlined } from '@ant-design/icons';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { Panel } = Collapse;
 
 interface Message {
